@@ -1,56 +1,81 @@
 import responses, discord, configparser, os, random
+import words as w # Tomo trigger zodziai
+from discord.ext import commands
+
+conf = configparser.ConfigParser()
+conf.read('token.ini')
+TOKEN = conf['info']['TOKEN']
+
+intents = discord.Intents.default()
+intents.message_content = True
+
+bot = commands.Bot(command_prefix='!', intents=intents)
 
 
-async def send_message(message, user_message, is_private):
-    try:
-        response = responses.handle_response(user_message)
-        await message.author.send(response) if is_private else await message.channel.send(response)
-    except Exception as e:
-        print(e)
-
-photos = []
+@bot.command(name='fraze', help="Imesiu Plankio fraze is Ievos database")
+async def frazes(ctx):
+    await ctx.send(random.choice(w.frazes))
 
 
-async def send_photo(channel):
-    await channel.send(file=discord.File('./pictures/' + photos[random.randint(0, len(photos))]))
-    # with open('my_image.png', 'rb') as f:
-    #     picture = discord.File(f)
-    #     await channel.send(file=picture)
+@bot.command(name='izeisk', help='Izeisiu')
+async def izeidimas(ctx, arg):
+    if arg == '<@285773249353351180>':
+        await ctx.send('Meistro izeidinet negalima')
+    elif arg =='<@1064896422975119430>':
+        await ctx.send('ragana gaidys')
+    else:
+        await ctx.send(arg + ' tu esi blogas zmogus')
 
 
-def run_discord_bot():
-    conf = configparser.ConfigParser()
-    conf.read('token.ini')
-    TOKEN = conf['info']['TOKEN']
+@bot.listen('on_message')
+async def chat(msg):
+    message = msg.author.mention + ' keiktis negalima!'
+    with open('keiksmai.txt', 'r') as file:
+        for line in file.readlines():
+            words = line.rstrip().split(',')
 
-    intents = discord.Intents.default()
-    intents.message_content = True
-    client = discord.Client(intents=intents)
+    for word in words:
+        if word in msg.content:
+            await msg.channel.send(message)
 
-    @client.event
-    async def on_ready():
-        print(f'{client.user} is now running!')
-        channel = client.get_channel(1038548451446763622)
-        # await channel.send('Labas visiems! Tomas grizo')
-        # await channel.send(file=discord.File('./pictures/zenius.png'))
-        for f in os.listdir('./pictures'):
-            photos.append(f)
 
-    @client.event
-    async def on_message(message):
+@bot.listen('on_message')
+async def sveikas(msg):
+    if any(x in msg.content for x in w.sveikinimai) and any(x in msg.content for x in w.vardai):
+        await msg.channel.send(random.choice(w.sveikinimai))
 
-        if message.author == client.user:
-            return
 
-        username = str(message.author)
-        user_message = str(message.content)
-        channel = str(message.channel)
-        channel_obj = message.channel
+@bot.listen('on_message')
+async def kreipimasis(msg):
 
-        print(f"{username} said: '{user_message}' ({channel})")
+    if any(x in msg.content for x in w.vardai):
+        await msg.channel.send(random.choice(w.atsakas))
+        response = await bot.wait_for('message', timeout=10, check=lambda m: m.author == msg.author)
 
-        if user_message == "imesk foto" or user_message == 'imesk fotke':
-            await send_photo(channel_obj)
+        if response.content in ['imesk fotke', 'imesk foto', 'atsiusk fotke', 'atsiusk foto']:
+            photos = []
+            for f in os.listdir('./pictures'):
+                photos.append(f)
+            await msg.channel.send(file=discord.File('./pictures/' + random.choice(photos)))
+            await msg.channel.send('Va prasau')
+        try:
+            if response.content in ['kaip sekasi?', 'kaip einasi?', 'kaip sekasi', 'kaip einasi']:
+                await msg.channel.send(random.choice(['normaliai', 'blogai...', 'gerai haha', 'visai nieko', 'super',
+                                                      'puse velnio']))
+                await msg.channel.send('O tau kaip?')
+                try:
+                    response_kaip = await bot.wait_for('message', timeout=10, check=lambda m: m.author == msg.author)
 
-    client.run(TOKEN)
+                    if response_kaip.content in ['blogai', 'nekaip', 'Blogai', 'Nekaip']:
+                        await msg.channel.send('Kaip gaila...')
+                    elif response_kaip.content == 'normaliai':
+                        await msg.channel.send('Supratau')
+                    elif response_kaip.content == 'gerai':
+                        await msg.channel.send('Dziugu girdet!')
+                except TimeoutError:
+                    await msg.channel.send('Tai atrasyk blet')
+        except TimeoutError:
+            await msg.channel.send('Tai atrasyk blet')
 
+
+bot.run(TOKEN)
