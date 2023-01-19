@@ -1,5 +1,6 @@
 import responses, discord, configparser, os, random
 import words as w # Tomo trigger zodziai
+import json, datetime
 from discord.ext import commands
 
 conf = configparser.ConfigParser()
@@ -8,8 +9,15 @@ TOKEN = conf['info']['TOKEN']
 
 intents = discord.Intents.default()
 intents.message_content = True
-
 bot = commands.Bot(command_prefix='!', intents=intents)
+guild_id = int(conf['info']['guild_id'])
+client = discord.Client(intents=intents)
+guild = client.get_guild(guild_id)
+
+
+@bot.event
+async def on_ready():
+    print('Tomas is now running...')
 
 
 @bot.command(name='fraze', help="Imesiu Plankio fraze is Ievos database")
@@ -28,15 +36,31 @@ async def izeidimas(ctx, arg):
 
 
 @bot.listen('on_message')
-async def chat(msg):
+async def keiksmai(msg):
     message = msg.author.mention + ' keiktis negalima!'
     with open('keiksmai.txt', 'r') as file:
         for line in file.readlines():
             words = line.rstrip().split(',')
 
     for word in words:
-        if word in msg.content:
+        if word in msg.content.split(' '):
             await msg.channel.send(message)
+            with open('data.json', 'r') as f:
+                data = json.loads(f.read())
+            with open('data.json', 'w') as f:
+                if str(msg.author.id) in data:
+                    if data[str(msg.author.id)] == 3:
+                        await msg.channel.send("Nu vsio tau")
+                        member = guild.get_member(msg.author.id)
+                        await member.timeout(datetime.timedelta(seconds=30))
+                        data[str(msg.author.id)] = 0
+                        json.dump(data, f)
+                    else:
+                        data[str(msg.author.id)] += 1
+                        json.dump(data, f)
+                else:
+                    data.update({str(msg.author.id): 1})
+                    json.dump(data, f)
 
 
 @bot.listen('on_message')
@@ -75,7 +99,8 @@ async def kreipimasis(msg):
                 except TimeoutError:
                     await msg.channel.send('Tai atrasyk blet')
         except TimeoutError:
-            await msg.channel.send('Tai atrasyk blet')
+            await msg.channel.send('Nu tai kas yra?')
 
 
-bot.run(TOKEN)
+def run_bot():
+    bot.run(TOKEN)
