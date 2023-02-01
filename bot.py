@@ -1,6 +1,7 @@
-import responses, discord, configparser, os, random
+import discord, configparser, os, random
 import words as w # Tomo trigger zodziai
 import json, datetime
+from addons import wiki
 from discord.ext import commands
 
 conf = configparser.ConfigParser()
@@ -64,15 +65,9 @@ async def keiksmai(msg):
 
 
 @bot.listen('on_message')
-async def sveikas(msg):
-    if any(x in msg.content for x in w.sveikinimai) and any(x in msg.content for x in w.vardai):
-        await msg.channel.send(random.choice(w.sveikinimai))
-
-
-@bot.listen('on_message')
 async def kreipimasis(msg):
-
-    if any(x in msg.content for x in w.vardai):
+    msg_c = str(msg.content).lower()
+    if any(x in msg_c for x in w.vardai):
         await msg.channel.send(random.choice(w.atsakas))
         response = await bot.wait_for('message', timeout=10, check=lambda m: m.author == msg.author)
 
@@ -100,6 +95,32 @@ async def kreipimasis(msg):
                     await msg.channel.send('Tai atrasyk blet')
         except TimeoutError:
             await msg.channel.send('Nu tai kas yra?')
+
+
+@bot.command(name='ateik', pass_context=True)
+async def ateik(ctx):
+    channel = ctx.author.voice.channel
+    await channel.connect()
+
+
+@bot.command(name='iseik', pass_context=True)
+async def iseik(ctx):
+    server = ctx.message.guild.voice_client
+    await server.disconnect()
+
+
+@bot.command(name='wiki')
+async def search(ctx, arg):
+    try:
+        answer = wiki.get_answer(arg)
+        if isinstance(answer, list):
+            text = answer[0]
+            link = answer[1]
+            await ctx.send(text + '\n' + '\n' + 'Read more at: ' + link)
+        else:
+            await ctx.send(answer)
+    except discord.ext.commands.errors.MissingRequiredArgument:
+        await ctx.send('Missing argument...')
 
 
 def run_bot():
