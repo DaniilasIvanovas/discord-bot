@@ -92,7 +92,7 @@ async def kreipimasis(msg):
                     elif response_kaip.content == 'gerai':
                         await msg.channel.send('Dziugu girdet!')
                 except TimeoutError:
-                    await msg.channel.send('Tai atrasyk blet')
+                    await msg.channel.send('Tai atrasyk...')
         except TimeoutError:
             await msg.channel.send('Nu tai kas yra?')
 
